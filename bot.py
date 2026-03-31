@@ -4,7 +4,8 @@ from telegram import Update, KeyboardButton, ReplyKeyboardMarkup, InlineKeyboard
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 
 TOKEN = os.getenv("8660116841:AAHYRppOiooGqZoLVT-ElgATAwwrfXZSCCg")
-ADMIN_ID = int(os.getenv("1353810188"))
+ADMIN_ID = int(os.getenv("ADMIN_ID"))
+
 
 GAME_URL = "https://ahmedsgame.netlify.app/"  # change this
 
