@@ -1,12 +1,25 @@
 import json
 import os
-from telegram import Update, KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
+from telegram import (
+    Update,
+    KeyboardButton,
+    ReplyKeyboardMarkup,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup
+)
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    MessageHandler,
+    CallbackQueryHandler,
+    ContextTypes,
+    filters
+)
 
 TOKEN = os.getenv("TOKEN")
 ADMIN_ID = int(os.getenv("ADMIN_ID"))
 
-GAME_URL = "https://ahmedsgame.netlify.app/"  # change this
+GAME_URL = "https://ahmedsgame.netlify.app/"
 
 # ================= DATABASE =================
 def load_users():
@@ -58,15 +71,15 @@ texts = {
     }
 }
 
-
 # ================= START =================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("English", callback_data="lang_en")],
-        [InlineKeyboardButton("አማርኛ", callback_data="lang_en")],
-        [InlineKeyboardButton("ኦሮምኛ", callback_data="lang_en")],
-        [InlineKeyboardButton("ትግርኛ", callback_data="lang_am")]
+        [InlineKeyboardButton("አማርኛ", callback_data="lang_am")],
+        [InlineKeyboardButton("Afaan Oromo", callback_data="lang_or")],
+        [InlineKeyboardButton("ትግርኛ", callback_data="lang_ti")]
     ]
+
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await update.message.reply_text(
@@ -83,20 +96,22 @@ async def language(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(query.from_user.id)
 
     if user_id not in users:
-        users[user_id] = {"language": lang, "balance": 10, "phone": None}
-        save_users(users)
-
-        msg = texts[lang]["bonus"] + "\n\n" + texts[lang]["ask_phone"]
-
+        users[user_id] = {"language": lang, "balance": 0, "phone": None}
     else:
         users[user_id]["language"] = lang
-        save_users(users)
-        msg = texts[lang]["ask_phone"]
 
-    # request phone button
+    save_users(users)
+
+    msg = texts[lang]["ask_phone"]
+
     contact_btn = KeyboardButton("📱 Share Phone", request_contact=True)
     keyboard = [[contact_btn]]
-    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+
+    reply_markup = ReplyKeyboardMarkup(
+        keyboard,
+        resize_keyboard=True,
+        one_time_keyboard=True
+    )
 
     await query.message.reply_text(msg, reply_markup=reply_markup)
 
@@ -104,28 +119,32 @@ async def language(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def phone_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     user_id = str(user.id)
+
+    if user_id not in users:
+        return
+
     phone = update.message.contact.phone_number
+    lang = users[user_id]["language"]
 
     # check duplicate
     for uid in users:
-        if users[uid].get("phone") == phone:
-            lang = users[user_id]["language"]
+        if users[uid].get("phone") == phone and uid != user_id:
             await update.message.reply_text(texts[lang]["already"])
             return
 
+    # save phone + give bonus
     users[user_id]["phone"] = phone
+    users[user_id]["balance"] = users[user_id].get("balance", 0) + 10
     save_users(users)
 
-    lang = users[user_id]["language"]
-
-    # PLAY BUTTON
+    # play button
     keyboard = [
-        [InlineKeyboardButton(texts[lang]["play"], url=GAME_URL)]
+        [InlineKeyboardButton(f"🎮 {texts[lang]['play']}", url=GAME_URL)]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await update.message.reply_text(
-        texts[lang]["done"],
+        f"{texts[lang]['bonus']}\n\n{texts[lang]['done']}",
         reply_markup=reply_markup
     )
 
