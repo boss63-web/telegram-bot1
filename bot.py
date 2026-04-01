@@ -43,7 +43,7 @@ texts = {
         "bonus": "🎁 You received 10 Birr bonus!",
         "already": "❌ This phone is already registered.",
         "done": "✅ Registration complete!",
-        "play": "🎮 Play Game"
+        "play": "Play Game"
     },
     "am": {
         "welcome": "🎉 እንኳን ወደ Bingo Cash Games በደህና መጡ!\n\nቋንቋ ይምረጡ:",
@@ -51,7 +51,7 @@ texts = {
         "bonus": "🎁 10 ብር ቦነስ ተቀብለዋል!",
         "already": "❌ ይህ ቁጥር ቀድሞ ተመዝግቧል።",
         "done": "✅ ተመዝግቧል!",
-        "play": "🎮 ጫወታ ጀምር"
+        "play": "ጫወታ ጀምር"
     },
     "or": {
         "welcome": "🎉 Baga gara Bingo Cash Games dhuftan!\n\nAfaan filadhaa:",
@@ -59,7 +59,7 @@ texts = {
         "bonus": "🎁 10 Birr bonasii argattan!",
         "already": "❌ Lakkoofsi kun duraan galmaa'eera.",
         "done": "✅ Galmeen xumurameera!",
-        "play": "🎮 Taphi jalqabi"
+        "play": "Taphi jalqabi"
     },
     "ti": {
         "welcome": "🎉 እንቋዕ ናብ Bingo Cash Games ብደሓን መጻእኩም!\n\nቋንቋ ምረጹ:",
@@ -67,7 +67,7 @@ texts = {
         "bonus": "🎁 10 ብር ቦነስ ተቐቢልኩም!",
         "already": "❌ እዚ ቁጽሪ ኣቐዲሙ ተመዝጊቡ እዩ።",
         "done": "✅ ምዝገባ ተዛዚሙ!",
-        "play": "🎮 ጸወታ ጀምር"
+        "play": "ጸወታ ጀምር"
     }
 }
 
@@ -137,15 +137,31 @@ async def phone_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     users[user_id]["balance"] = users[user_id].get("balance", 0) + 10
     save_users(users)
 
-    # play button
-    keyboard = [
-        [InlineKeyboardButton(f"🎮 {texts[lang]['play']}", url=GAME_URL)]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
+    # ✅ Bottom Play Button
+    play_btn = KeyboardButton(f"🎮 {texts[lang]['play']}")
+    keyboard = [[play_btn]]
+
+    reply_markup = ReplyKeyboardMarkup(
+        keyboard,
+        resize_keyboard=True
+    )
 
     await update.message.reply_text(
         f"{texts[lang]['bonus']}\n\n{texts[lang]['done']}",
         reply_markup=reply_markup
+    )
+
+# ================= PLAY BUTTON HANDLER =================
+async def play_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.effective_user.id)
+
+    if user_id not in users:
+        return
+
+    lang = users[user_id]["language"]
+
+    await update.message.reply_text(
+        f"🎮 {texts[lang]['play']}\n{GAME_URL}"
     )
 
 # ================= MAIN =================
@@ -154,5 +170,6 @@ app = ApplicationBuilder().token(TOKEN).build()
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CallbackQueryHandler(language, pattern="lang_"))
 app.add_handler(MessageHandler(filters.CONTACT, phone_handler))
+app.add_handler(MessageHandler(filters.TEXT & filters.Regex("🎮"), play_handler))
 
 app.run_polling()
