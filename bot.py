@@ -31,7 +31,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("💵 Balance", callback_data="balance")],
         [InlineKeyboardButton("💸 Withdraw", callback_data="withdraw")],
-        [InlineKeyboardButton("🎮 Play Game", url="https://your-site.netlify.app")]
+        [InlineKeyboardButton("🎮 Play Game", url="https://ahmedsgame.netlify.app/")]
     ]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
