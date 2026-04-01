@@ -1,10 +1,12 @@
 import json
 import os
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
+from telegram import Update, KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 
 TOKEN = os.getenv("TOKEN")
 ADMIN_ID = int(os.getenv("ADMIN_ID"))
+
+GAME_URL = "https://ahmedsgame.netlify.app/"  # change this
 
 # ================= DATABASE =================
 def load_users():
@@ -20,95 +22,118 @@ def save_users(data):
 
 users = load_users()
 
+# ================= TEXT =================
+texts = {
+    "en": {
+        "welcome": "🎉 Welcome to Bingo Cash Games!\n\nChoose your language:",
+        "ask_phone": "📱 Please share your phone number:",
+        "bonus": "🎁 You received 10 Birr bonus!",
+        "already": "❌ This phone is already registered.",
+        "done": "✅ Registration complete!",
+        "play": "🎮 Play Game"
+    },
+    "am": {
+        "welcome": "🎉 እንኳን ወደ Bingo Cash Games በደህና መጡ!\n\nቋንቋ ይምረጡ:",
+        "ask_phone": "📱 እባክዎን ስልክ ቁጥር ያጋሩ:",
+        "bonus": "🎁 10 ብር ቦነስ ተቀብለዋል!",
+        "already": "❌ ይህ ቁጥር ቀድሞ ተመዝግቧል።",
+        "done": "✅ ተመዝግቧል!",
+        "play": "🎮 ጫወታ ጀምር"
+    },
+    "or": {
+        "welcome": "🎉 Baga gara Bingo Cash Games dhuftan!\n\nAfaan filadhaa:",
+        "ask_phone": "📱 Lakkoofsa bilbilaa keessan nuuf kennaa:",
+        "bonus": "🎁 10 Birr bonasii argattan!",
+        "already": "❌ Lakkoofsi kun duraan galmaa'eera.",
+        "done": "✅ Galmeen xumurameera!",
+        "play": "🎮 Taphi jalqabi"
+    },
+    "ti": {
+        "welcome": "🎉 እንቋዕ ናብ Bingo Cash Games ብደሓን መጻእኩም!\n\nቋንቋ ምረጹ:",
+        "ask_phone": "📱 በጃኹም ቁጽሪ ስልኪኹም ኣቕርቡ:",
+        "bonus": "🎁 10 ብር ቦነስ ተቐቢልኩም!",
+        "already": "❌ እዚ ቁጽሪ ኣቐዲሙ ተመዝጊቡ እዩ።",
+        "done": "✅ ምዝገባ ተዛዚሙ!",
+        "play": "🎮 ጸወታ ጀምር"
+    }
+}
+
+
 # ================= START =================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = str(update.effective_user.id)
-
-    if user_id not in users:
-        users[user_id] = {"balance": 100}  # test balance
-        save_users(users)
-
     keyboard = [
-        [InlineKeyboardButton("💵 Balance", callback_data="balance")],
-        [InlineKeyboardButton("💸 Withdraw", callback_data="withdraw")],
-        [InlineKeyboardButton("🎮 Play Game", url="https://ahmedsgame.netlify.app/")]
+        [InlineKeyboardButton("English", callback_data="lang_en")],
+        [InlineKeyboardButton("አማርኛ", callback_data="lang_en")],
+        [InlineKeyboardButton("ኦሮምኛ", callback_data="lang_en")],
+        [InlineKeyboardButton("ትግርኛ", callback_data="lang_am")]
     ]
-
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await update.message.reply_text(
-        "🎉 Welcome to Bingo Cash System",
+        "🎉 Welcome to Bingo Cash Games!\n\n🌍 Choose your language:",
         reply_markup=reply_markup
     )
 
-# ================= BUTTON =================
-async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# ================= LANGUAGE =================
+async def language(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
+    lang = query.data.split("_")[1]
     user_id = str(query.from_user.id)
 
-    if query.data == "balance":
-        bal = users[user_id]["balance"]
-        await query.edit_message_text(f"💰 Your balance: {bal} birr")
-
-    elif query.data == "withdraw":
-        context.user_data["withdraw"] = True
-        await query.edit_message_text("💸 Enter amount to withdraw:")
-
-    elif query.data.startswith("approve"):
-        _, uid, amount = query.data.split("_")
-
-        users[uid]["balance"] -= int(amount)
+    if user_id not in users:
+        users[user_id] = {"language": lang, "balance": 10, "phone": None}
         save_users(users)
 
-        await context.bot.send_message(uid, f"✅ Withdraw Approved: {amount} birr")
-        await query.edit_message_text("✅ Approved")
+        msg = texts[lang]["bonus"] + "\n\n" + texts[lang]["ask_phone"]
 
-    elif query.data.startswith("reject"):
-        _, uid = query.data.split("_")
+    else:
+        users[user_id]["language"] = lang
+        save_users(users)
+        msg = texts[lang]["ask_phone"]
 
-        await context.bot.send_message(uid, "❌ Withdraw Rejected")
-        await query.edit_message_text("❌ Rejected")
+    # request phone button
+    contact_btn = KeyboardButton("📱 Share Phone", request_contact=True)
+    keyboard = [[contact_btn]]
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
 
-# ================= HANDLE TEXT =================
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = str(update.effective_user.id)
+    await query.message.reply_text(msg, reply_markup=reply_markup)
 
-    if context.user_data.get("withdraw"):
-        amount = int(update.message.text)
+# ================= PHONE =================
+async def phone_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    user_id = str(user.id)
+    phone = update.message.contact.phone_number
 
-        if amount > users[user_id]["balance"]:
-            await update.message.reply_text("❌ Not enough balance")
+    # check duplicate
+    for uid in users:
+        if users[uid].get("phone") == phone:
+            lang = users[user_id]["language"]
+            await update.message.reply_text(texts[lang]["already"])
             return
 
-        # send to admin
-        keyboard = [
-            [
-                InlineKeyboardButton("✅ Approve", callback_data=f"approve_{user_id}_{amount}"),
-                InlineKeyboardButton("❌ Reject", callback_data=f"reject_{user_id}")
-            ]
-        ]
+    users[user_id]["phone"] = phone
+    save_users(users)
 
-        reply_markup = InlineKeyboardMarkup(keyboard)
+    lang = users[user_id]["language"]
 
-        await context.bot.send_message(
-            chat_id=ADMIN_ID,
-            text=f"💸 Withdraw Request\nUser: {user_id}\nAmount: {amount}",
-            reply_markup=reply_markup
-        )
+    # PLAY BUTTON
+    keyboard = [
+        [InlineKeyboardButton(texts[lang]["play"], url=GAME_URL)]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
 
-        await update.message.reply_text("⏳ Request sent to admin")
-
-        context.user_data["withdraw"] = False
+    await update.message.reply_text(
+        texts[lang]["done"],
+        reply_markup=reply_markup
+    )
 
 # ================= MAIN =================
 app = ApplicationBuilder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
-app.add_handler(CallbackQueryHandler(button))
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-
-print("Bot running...")
+app.add_handler(CallbackQueryHandler(language, pattern="lang_"))
+app.add_handler(MessageHandler(filters.CONTACT, phone_handler))
 
 app.run_polling()
